@@ -1,33 +1,14 @@
-// ================================================================
-// 🌙 main.dart — Entry Point Aplikasi Bitaqwa
-// ================================================================
-//
-//  Struktur:
-//  ┌───────────────────────────────┐
-//  │ main() → initializeDateFormatting() │
-//  │         → MyApp()                     │
-//  │             ├─ MaterialApp (theme + route)
-//  │             └─ DashboardPage() default
-//  └───────────────────────────────┘
-//
-//  Fungsi Utama:
-//  1️⃣ Inisialisasi Locale (id_ID) agar tanggal berformat bahasa Indonesia.
-//  2️⃣ Override sertifikat SSL (bila perlu untuk koneksi GitHub, API non-secure).
-//  3️⃣ Menjalankan MaterialApp utama dengan navigasi antar halaman.
-//
-// ================================================================
-
 import 'dart:io'; // Untuk HttpOverrides (izin bypass SSL)
-import 'pages/doa_page.dart';
-import 'pages/waris_page.dart';
-import 'pages/quran_list_page.dart';
+import 'package:bitaqwa/Presentation/dashboard_page.dart';
+import 'package:bitaqwa/Presentation/doa_page.dart';
+import 'package:bitaqwa/Presentation/kajian_page.dart';
+import 'package:bitaqwa/Presentation/sholat_page.dart';
+import 'package:bitaqwa/Presentation/zakat_page.dart';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'pages/dashboard_page.dart';
-import 'pages/sholat_page.dart';
-import 'pages/kajian_page.dart';
-import 'pages/zakat_page.dart';
 import 'package:home_widget/home_widget.dart';
 import 'widget/prayer_widget_updater.dart';
 
@@ -46,15 +27,19 @@ void main() async {
   /// 🔹 Pastikan Flutter sudah siap sebelum menjalankan async
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Registrasi background callback
-  await HomeWidget.registerBackgroundCallback(backgroundCallback);
+  // Registrasi background callback (hanya untuk mobile/Android/iOS, tidak didukung di Web)
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    await HomeWidget.registerBackgroundCallback(backgroundCallback);
+  }
 
   /// 🔹 Inisialisasi format tanggal bahasa Indonesia
   /// Contoh hasil: “Senin, 6 November 2025”
   await initializeDateFormatting('id_ID', null);
 
   /// 🔹 Override SSL supaya koneksi HTTP/HTTPS yang self-signed tetap bisa jalan
-  HttpOverrides.global = MyHttpOverrides();
+  if (!kIsWeb) {
+    HttpOverrides.global = MyHttpOverrides();
+  }
 
   /// 🔹 Jalankan aplikasi utama
   runApp(const MyApp());
@@ -105,12 +90,6 @@ class MyApp extends StatelessWidget {
 
         // '/doa-harian'-> halaman doa harian
         '/doa-harian': (context) => DoaPage(),
-
-        // '/quran'-> halaman quran
-        '/quran': (context) => QuranListPage(),
-
-        // '/waris' -> halaman kalkulator waris
-        '/waris': (context) => WarisPage(),
       },
     );
   }

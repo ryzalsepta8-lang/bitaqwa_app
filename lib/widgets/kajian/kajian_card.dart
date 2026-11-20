@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:bitaqwa/pages/detail_kajian_page.dart';
+import 'package:bitaqwa/Presentation/detail_kajian_page.dart';
 
 class KajianCard extends StatelessWidget {
   final Map<String, String> video;

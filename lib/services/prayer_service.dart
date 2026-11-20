@@ -4,54 +4,66 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
 class PrayerService {
-  static const String _apiKey = '03dd8d9467b2169e39bda684785ff623';
-
   static Future<List<dynamic>> fetchJadwalSholat(
     String city,
     String month,
     String year,
   ) async {
     final prefs = await SharedPreferences.getInstance();
-    final cacheKey = "prayer_muslimsalat_$city-$year-$month";
+    final cacheKey = "prayer_aladhan_$city-$year-$month";
 
     final cachedData = prefs.getString(cacheKey);
     if (cachedData != null) {
       return json.decode(cachedData) as List<dynamic>;
     }
 
-    // MuslimSalat monthly endpoint with API Key and Method 5 (Muslim World League)
     final formattedMonth = month.padLeft(2, '0');
+    // Aladhan API mendukung CORS (Access-Control-Allow-Origin: *)
+    // method=11: Majlis Ugama Islam Singapura / Kemenag friendly
     final url =
-        'https://muslimsalat.com/$city/monthly/01-$formattedMonth-$year.json?key=$_apiKey&method=5';
+        'https://api.aladhan.com/v1/calendarByAddress/$year/$formattedMonth?address=${Uri.encodeComponent(city)}&method=11';
+
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data['status_code'] == 1) {
-          final items = data['items'] as List<dynamic>;
+        if (data['code'] == 200 && data['data'] is List) {
+          final items = data['data'] as List<dynamic>;
 
-          // Map MuslimSalat keys to app keys and normalize time to 24h
           final normalizedItems = items.map((e) {
-            final fahrRaw = e['fajr'];
-            final shurooqRaw = e['shurooq'];
+            final timings = e['timings'] as Map<String, dynamic>;
+            final gregorian = e['date']['gregorian'] as Map<String, dynamic>;
 
-            final shubuh = _convertTo24h(fahrRaw);
-            final terbit = _convertTo24h(shurooqRaw);
+            // Tanggal format: DD-MM-YYYY -> YYYY-MM-DD
+            final dateStr = gregorian['date'] as String;
+            final dateParts = dateStr.split('-');
+            final formattedDate =
+                "${dateParts[2]}-${dateParts[1].padLeft(2, '0')}-${dateParts[0].padLeft(2, '0')}";
 
-            // Calculate Imsyak (approx 10 min before Subuh) and Dhuha (approx 20 min after Terbit)
-            final imsyak = _adjustTime(shubuh, -10);
+            // Aladhan timings string format: "04:06 (WIB)" atau "04:06"
+            String cleanTime(dynamic t) {
+              if (t == null) return "00:00";
+              final str = t.toString().trim();
+              return str.split(' ').first;
+            }
+
+            final shubuh = cleanTime(timings['Fajr']);
+            final terbit = cleanTime(timings['Sunrise']);
+            final imsyak = timings['Imsak'] != null
+                ? cleanTime(timings['Imsak'])
+                : _adjustTime(shubuh, -10);
             final dhuha = _adjustTime(terbit, 20);
 
             return {
-              'tanggal': _normalizeDate(e['date_for']),
+              'tanggal': formattedDate,
               'imsyak': imsyak,
               'shubuh': shubuh,
               'terbit': terbit,
               'dhuha': dhuha,
-              'dzuhur': _convertTo24h(e['dhuhr']),
-              'ashr': _convertTo24h(e['asr']),
-              'magrib': _convertTo24h(e['maghrib']),
-              'isya': _convertTo24h(e['isha']),
+              'dzuhur': cleanTime(timings['Dhuhr']),
+              'ashr': cleanTime(timings['Asr']),
+              'magrib': cleanTime(timings['Maghrib']),
+              'isya': cleanTime(timings['Isha']),
             };
           }).toList();
 
@@ -60,37 +72,14 @@ class PrayerService {
         }
       }
     } catch (e) {
-      print("Error fetch MuslimSalat: $e");
+      // ignore: avoid_print
+      print("Error fetch Prayer Times: $e");
     }
 
     throw Exception('Gagal memuat jadwal sholat untuk $city');
   }
 
-  static String _normalizeDate(String dateStr) {
-    // Input: "2026-2-24" -> Output: "2026-02-24"
-    try {
-      final parts = dateStr.split('-');
-      if (parts.length == 3) {
-        final year = parts[0];
-        final month = parts[1].padLeft(2, '0');
-        final day = parts[2].padLeft(2, '0');
-        return "$year-$month-$day";
-      }
-    } catch (_) {}
-    return dateStr;
-  }
 
-  static String _convertTo24h(String timeStr) {
-    // Input: "4:49 am" -> Output: "04:49"
-    // Input: "2:57 pm" -> Output: "14:57"
-    try {
-      final format = DateFormat("h:mm a");
-      final time = format.parse(timeStr.toUpperCase());
-      return DateFormat("HH:mm").format(time);
-    } catch (e) {
-      return timeStr;
-    }
-  }
 
   static String _adjustTime(String hhmm, int minutes) {
     try {

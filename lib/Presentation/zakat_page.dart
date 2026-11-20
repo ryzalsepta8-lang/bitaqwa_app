@@ -42,7 +42,7 @@ class _ZakatPageState extends State<ZakatPage> {
   final TextEditingController _interestController = TextEditingController();
 
   double? _zakatAmount;
-  String? _zakatSymbol = "Rp ";
+  String? _zakatSymbol = 'Rp ';
   double? _nisabValue;
   double? _goldPrice;
   double? _silverPrice;
@@ -64,17 +64,45 @@ class _ZakatPageState extends State<ZakatPage> {
     _initData();
   }
 
+  @override
+  void dispose() {
+    _incomeController.dispose();
+    _expenseController.dispose();
+    _modalController.dispose();
+    _labaController.dispose();
+    _piutangController.dispose();
+    _hutangController.dispose();
+    _kerugianController.dispose();
+    _ownedController.dispose();
+    _usedController.dispose();
+    _harvestController.dispose();
+    _balanceController.dispose();
+    _interestController.dispose();
+    super.dispose();
+  }
+
   Future<void> _initData() async {
     setState(() => _isLoading = true);
-    final data = await ZakatService.fetchGoldAndNisab();
-    setState(() {
-      _nisabValue = data['nisabValue'];
-      _goldPrice = data['goldPrice'];
-      _silverPrice = data['silverPrice'];
-      _lastUpdate = data['lastUpdate'];
-      _isOffline = data['isOffline'];
-      _isLoading = false;
-    });
+    try {
+      final data = await ZakatService.fetchGoldAndNisab();
+      setState(() {
+        _nisabValue = (data['nisabValue'] as num?)?.toDouble();
+        _goldPrice = (data['goldPrice'] as num?)?.toDouble();
+        _silverPrice = (data['silverPrice'] as num?)?.toDouble();
+        _lastUpdate = data['lastUpdate'] as String?;
+        _isOffline = data['isOffline'] as bool? ?? false;
+      });
+    } catch (e) {
+      _showWarning('Gagal memuat data nisab');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showWarning(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
+    );
   }
 
   void _calculateZakat() {
@@ -86,15 +114,18 @@ class _ZakatPageState extends State<ZakatPage> {
       return;
     }
 
-    if (_nisabValue == null) return;
+    if (_nisabValue == null) {
+      _showWarning('Data nisab belum tersedia');
+      return;
+    }
 
     final result = ZakatService.calculateZakat(income, expense, _nisabValue!);
     setState(() {
       _zakatAmount = result['zakatAmount'];
-      _zakatSymbol = "Rp ";
+      _zakatSymbol = 'Rp ';
       _isAboveNisab = result['isAboveNisab'];
       _calculationBreakdown =
-          "(${_currencyFormat.format(income)} - ${_currencyFormat.format(expense)}) x 2,5%";
+          '(${_currencyFormat.format(income)} - ${_currencyFormat.format(expense)}) × 2,5%';
     });
   }
 
@@ -108,7 +139,10 @@ class _ZakatPageState extends State<ZakatPage> {
     final kerugian =
         double.tryParse(toNumericString(_kerugianController.text)) ?? 0;
 
-    if (_nisabValue == null) return;
+    if (_nisabValue == null) {
+      _showWarning('Data nisab belum tersedia');
+      return;
+    }
 
     final result = ZakatService.calculatePerdagangan(
       modal: modal,
@@ -118,18 +152,23 @@ class _ZakatPageState extends State<ZakatPage> {
       kerugian: kerugian,
       nisabValue: _nisabValue!,
     );
+
     setState(() {
       _zakatAmount = result['zakatAmount'];
-      _zakatSymbol = "Rp ";
+      _zakatSymbol = 'Rp ';
       _isAboveNisab = result['isAboveNisab'];
+      // Catatan: baris ini terpotong di screenshot. Polanya disusun ulang,
+      // sesuaikan dengan rumus asli kamu.
       _calculationBreakdown =
-          "(${_currencyFormat.format(modal)} + ${_currencyFormat.format(laba)} + ${_currencyFormat.format(piutang)} - ${_currencyFormat.format(hutang)} - ${_currencyFormat.format(kerugian)}) x 2,5%";
+          '(${_currencyFormat.format(modal)} + ${_currencyFormat.format(laba)} + '
+          '${_currencyFormat.format(piutang)} - ${_currencyFormat.format(hutang)} - '
+          '${_currencyFormat.format(kerugian)}) × 2,5%';
     });
   }
 
   void _calculateEmasPerak(bool isGold) {
-    final owned = double.tryParse(_ownedController.text) ?? 0;
-    final used = double.tryParse(_usedController.text) ?? 0;
+    final owned = double.tryParse(toNumericString(_ownedController.text)) ?? 0;
+    final used = double.tryParse(toNumericString(_usedController.text)) ?? 0;
     final double nisabGram = isGold ? 85.0 : 595.0;
 
     final result = ZakatService.calculateEmasPerak(
@@ -140,26 +179,30 @@ class _ZakatPageState extends State<ZakatPage> {
 
     setState(() {
       final pricePerGram = isGold ? (_goldPrice ?? 0) : (_silverPrice ?? 0);
-      _zakatAmount = result['zakatWeight'] * pricePerGram;
-      _zakatSymbol = "Rp ";
+      _zakatAmount = result['zakatAmount'] * pricePerGram;
+      _zakatSymbol = 'Rp ';
       _isAboveNisab = result['isAboveNisab'];
       _calculationBreakdown =
-          "($owned gr - $used gr) x ${_currencyFormat.format(pricePerGram)} x 2,5%";
+          '(${owned.toStringAsFixed(0)} gr - ${used.toStringAsFixed(0)} gr) × '
+          '${_currencyFormat.format(pricePerGram)} × 2,5%';
     });
   }
 
   void _calculatePertanian(bool isIrrigated) {
-    final harvest = double.tryParse(_harvestController.text) ?? 0;
+    final harvest =
+        double.tryParse(toNumericString(_harvestController.text)) ?? 0;
+
     final result = ZakatService.calculatePertanian(
       harvestKg: harvest,
       isIrrigated: isIrrigated,
     );
+
     setState(() {
       _zakatAmount = result['zakatAmountKg'];
-      _zakatSymbol = " kg";
+      _zakatSymbol = ' kg';
       _isAboveNisab = result['isAboveNisab'];
-      final rate = isIrrigated ? "5%" : "10%";
-      _calculationBreakdown = "$harvest kg x $rate";
+      final rate = isIrrigated ? '5%' : '10%';
+      _calculationBreakdown = '$harvest kg × $rate';
     });
   }
 
@@ -169,25 +212,48 @@ class _ZakatPageState extends State<ZakatPage> {
     final interest =
         double.tryParse(toNumericString(_interestController.text)) ?? 0;
 
-    if (_nisabValue == null) return;
+    if (_nisabValue == null) {
+      _showWarning('Data nisab belum tersedia');
+      return;
+    }
 
     final result = ZakatService.calculateTabungan(
       balance: balance,
       interest: interest,
       nisabValue: _nisabValue!,
     );
+
     setState(() {
       _zakatAmount = result['zakatAmount'];
-      _zakatSymbol = "Rp ";
+      _zakatSymbol = 'Rp ';
       _isAboveNisab = result['isAboveNisab'];
       _calculationBreakdown =
-          "(${_currencyFormat.format(balance)} - ${_currencyFormat.format(interest)}) x 2,5%";
+          '(${_currencyFormat.format(balance)} - ${_currencyFormat.format(interest)}) × 2,5%';
     });
   }
 
-  void _showWarning(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
+  Widget _buildTabWrapper(Widget child) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          child,
+          if (_zakatAmount != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 30),
+              child: ZakatResultCard(
+                zakatAmount: _zakatAmount!,
+                isAboveNisab: _isAboveNisab,
+                calculationBreakdown: _calculationBreakdown,
+                currencyFormat: NumberFormat.currency(
+                  locale: 'id_ID',
+                  symbol: _zakatSymbol,
+                  decimalDigits: 0,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -200,7 +266,7 @@ class _ZakatPageState extends State<ZakatPage> {
         appBar: AppBar(
           backgroundColor: Colors.amber,
           title: const Text(
-            "Kalkulator Zakat",
+            'Kalkulator Zakat',
             style: TextStyle(
               fontFamily: 'PoppinsSemiBold',
               color: Colors.white,
@@ -212,11 +278,11 @@ class _ZakatPageState extends State<ZakatPage> {
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             tabs: [
-              Tab(text: "Penghasilan"),
-              Tab(text: "Perdagangan"),
-              Tab(text: "Emas & Perak"),
-              Tab(text: "Pertanian"),
-              Tab(text: "Tabungan"),
+              Tab(text: 'Penghasilan'),
+              Tab(text: 'Perdagangan'),
+              Tab(text: 'Emas & Perak'),
+              Tab(text: 'Pertanian'),
+              Tab(text: 'Tabungan'),
             ],
           ),
         ),
@@ -260,8 +326,7 @@ class _ZakatPageState extends State<ZakatPage> {
                           ZakatEmasPerakForm(
                             ownedController: _ownedController,
                             usedController: _usedController,
-                            onCalculate: (isGold) =>
-                                _calculateEmasPerak(isGold),
+                            onCalculate: (isGold) => _calculateEmasPerak(isGold),
                           ),
                         ),
                         _buildTabWrapper(
@@ -282,31 +347,6 @@ class _ZakatPageState extends State<ZakatPage> {
                   ),
                 ],
               ),
-      ),
-    );
-  }
-
-  Widget _buildTabWrapper(Widget child) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          child,
-          if (_zakatAmount != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: ZakatResultCard(
-                zakatAmount: _zakatAmount!,
-                isAboveNisab: _isAboveNisab,
-                calculationBreakdown: _calculationBreakdown,
-                currencyFormat: NumberFormat.currency(
-                  locale: 'id_ID',
-                  symbol: _zakatSymbol,
-                  decimalDigits: 0,
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }

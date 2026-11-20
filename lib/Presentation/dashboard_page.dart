@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:home_widget/home_widget.dart';
@@ -115,7 +116,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _updateHomeScreenWidget() async {
-    if (_jadwalSholat == null) return;
+    if (kIsWeb || _jadwalSholat == null) return;
 
     final now = DateTime.now();
     final todayDate = DateFormat('yyyy-MM-dd').format(now);

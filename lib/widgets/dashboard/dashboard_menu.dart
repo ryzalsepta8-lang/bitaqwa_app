@@ -5,64 +5,51 @@ class DashboardMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-      child: GridView.count(
-        crossAxisCount: 4,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        children: [
-          _buildMenuItem(
-            context,
-            'assets/images/ic_menu_doa.png',
-            'Doa',
-            '/doa-harian',
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildMenuItem(
+                  context,
+                  'assets/images/ic_menu_doa.png',
+                  'Doa',
+                  '/doa-harian',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMenuItem(
+                  context,
+                  'assets/images/ic_menu_zakat.png',
+                  'Zakat',
+                  '/zakat-page',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMenuItem(
+                  context,
+                  'assets/images/ic_menu_jadwal_sholat.png',
+                  'Sholat',
+                  '/jadwal-sholat',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMenuItem(
+                  context,
+                  'assets/images/ic_menu_video_kajian.png',
+                  'Kajian',
+                  '/video-kajian',
+                ),
+              ),
+            ],
           ),
-          _buildMenuItem(
-            context,
-            'assets/images/ic_menu_zakat.png',
-            'Zakat',
-            '/zakat-page',
-          ),
-          _buildMenuItem(
-            context,
-            'assets/images/ic_menu_jadwal_sholat.png',
-            'Sholat',
-            '/jadwal-sholat',
-          ),
-          _buildMenuItem(
-            context,
-            'assets/images/ic_menu_video_kajian.png',
-            'Kajian',
-            '/video-kajian',
-          ),
-          _buildMenuItem(
-            context,
-            'assets/images/ic_menu_quran.png',
-            'Quran',
-            '/quran',
-          ),
-          _buildMenuItem(
-            context,
-            'assets/images/ic_menu_video_kajian.png', // Icon fallback
-            'Waris',
-            '/waris',
-          ),
-          _buildMenuItem(
-            context,
-            'assets/images/ic_menu_video_kajian.png',
-            'Dzikir',
-            '/video-kajian',
-          ),
-          _buildMenuItem(
-            context,
-            'assets/images/ic_menu_video_kajian.png',
-            'Berita',
-            '/video-kajian',
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -80,6 +67,7 @@ class DashboardMenu extends StatelessWidget {
         splashColor: Colors.amber.withAlpha(51),
         onTap: () => Navigator.pushNamed(context, routeName),
         child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -93,14 +81,20 @@ class DashboardMenu extends StatelessWidget {
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset(iconPath, width: 35),
-              const SizedBox(height: 6),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontFamily: 'PoppinsRegular',
-                  fontSize: 13,
+              Flexible(
+                child: Image.asset(iconPath, width: 32, height: 32, fit: BoxFit.contain),
+              ),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontFamily: 'PoppinsRegular',
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ],
